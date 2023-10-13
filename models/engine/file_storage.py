@@ -5,6 +5,7 @@
 
 
 import json
+from models.base_model import BaseModel
 
 
 class FileStorage:
@@ -15,7 +16,7 @@ class FileStorage:
     __file_path = "file.json"
     __objects = {}
 
-    def all(self):
+    def all(self, cls=None):
         """
         Returns the dictionary __objects.
 
@@ -23,29 +24,33 @@ class FileStorage:
             dicts: a dictionary containing all objects stored by
             <classs name>.id.
         """
+        if cls is not None:
+            if type(cls) == str:
+                cls = eval(cls)
+            cls_dict = {}
+            for key, value in self.__objects.items():
+                if type(value) == cls:
+                    cls_dict[key] = value
+            return cls_dict
 
         return self.__objects
 
     def new(self, obj):
         """
         Sets the object in __objects with the key  <obj class name>.id.
-
         Args:
             obj: An instance of a class to be stored.
         """
-        key = "{}.{}".format(obj.__class__.__name__, obj.id)
-        self.__objects[key] = obj
+        self.__objects["{}.{}".format(type(obj).__name__, obj.id)] = obj
 
 
     def save(self):
         """
         Serializes __objects to the JSON file (path: __file_path).
         """
-        serialized_data = {}
-        for key, obj in self.__objects.items():
-            serialized_data[key] = obj.to_dict()
-        with open(self.__file_path, "w") as f:
-            json.dump(serialized_data, f)
+        odict = {key: obj.to_dict() for key, obj in self.__objects.items()}
+        with open(self.__file_path, "w", encoding="utf-8") as f:
+            json.dump(odict, f)
 
 
     def reload(self):
@@ -55,13 +60,28 @@ class FileStorage:
         if the file doesn't exist, no exception shoild be raised.
         """
         try:
-            with open(self.__file_path, "r") as f:
+            with open(self.__file_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
-                for key, value in data.items():
-                    class_name, obj_id = key.split(".")
-                    class_name = class_name
-                    obj = eval(class_name)(**value)
-                    self.__objects[key] = obj
+                for i in data.values():
+                    if '__class__' in i:
+                        name = i['__class__']
+                        del i['__class__']
+                        self.new(eval(name)(**i))
+                    else:
+                        pass
 
         except FileNotFoundError:
             pass
+
+    def delete(self, obj=None):
+        """
+        Deletes an object from __objects if the objects already exists
+        """
+        try:
+            del self.__objects["{}.{}".format(type(obj).__name__, obj.id)]
+        except (AttributeError, KeyError):
+            pass
+
+    def close(self):
+        """Call reload method"""
+        self.reload()
