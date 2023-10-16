@@ -4,6 +4,10 @@ from models.base_model import BaseModel
 
 
 class Place(BaseModel):
+    """
+    The Place class this model inherits from the BaseModel to provide
+    the followinf public class attr
+    """
     city_id = ""
     user_id = ""
     name = ""
